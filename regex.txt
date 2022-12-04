@@ -1,12 +1,20 @@
----Verwijderen
-.com
-winkelnamen?
-
-
-
-
----Versimpelen
-alle hoofdletters weg
-inch
-hertz
+Huib:
+field['title'] = field['title'].lower()
+        field['title'] = field['title'].replace("inches","inch")
+        field['title'] = field['title'].replace("-inch","inch")          
+        field['title'] = field['title'].replace(" inch","inch") 
+        field['title'] = field['title'].replace("\" " ,"inch ")
+        field['title'] = field['title'].replace("\'" ,"inch ")
+        
+        field['title'] = field['title'].replace("("," ")
+        field['title'] = field['title'].replace(")"," ")
+        field['title'] = field['title'].replace(" /"," ")
+        field['title'] = field['title'].replace(", "," ")
+        
+        field['title'] = field['title'].replace("HZ","hz")
+        field['title'] = field['title'].replace("hertz","hz")
+        field['title'] = field['title'].replace(" hertz","hz")
+        field['title'] = field['title'].replace("-hz","hz")
+        field['title'] = field['title'].replace(" hz","hz")
+        field['title'] = field['title'].replace("Hz","hz")
 
