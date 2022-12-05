@@ -109,16 +109,16 @@ for tv in tv_titles:
 S = np.inf * np.ones((n,len(tv_titles))) # Initialize signature matrix with each element +inf
 
 # Parameters for the hash functions
-a = np.random.randint(0, 10*len(mw_set), size = n) # Choose len(mw_set) as upper bound to find good numbers
-b = np.random.randint(1, 10*len(mw_set), size = n)
+a = np.random.randint(len(mw_set), 10*len(mw_set), size = n) # Choose len(mw_set) as upper bound to find good numbers
+b = np.random.randint(len(mw_set), 10*len(mw_set), size = n)
 p = find_next_prime(len(mw_set)) # The mod value should be greater than the number of elements
 
 # Filling the signature matrix
 # TODO: kijken of dit wel écht goed gaat, nu erg veel columns die alleen maar inf zijn (hogere n waarde werkt beter)
 h = np.zeros((n,1)) # Initiate the hash values array
 for r in range(len(B)): # For each row r
-    for n in range(n):
-        h[n] = (a[n] + b[n] * n) % p # TODO: Als je hier de indices veranderrd naar iets anders dan 'n' dan lijkt het stuk te gaan
+    for k in range(n):
+        h[k] = (a[k] + b[k] * r) % p # TODO: Als je hier de indices veranderrd naar iets anders dan 'n' dan lijkt het stuk te gaan
     for c in range(len(B[0])): # For each column c
         if B[r,c] == 1:
             for i in range(n):
