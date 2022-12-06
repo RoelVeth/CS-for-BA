@@ -195,16 +195,8 @@ candidate_pairs = list(candidate_pairs_set) # Change the set to a list to iterat
 threshold = (1/nob)**(1/rpb)
 print("The threshold value is: ",threshold)
 
-duplicates = np.zeros((len(tv_titles),len(tv_titles)))
-for i in range(len(candidate_pairs)):
-    for j in range(len(candidate_pairs[i][:])):
-        for k in range(j+1,len(candidate_pairs[i])): # Only compare the right upper triangle of the matrix
-            indexA = candidate_pairs[i][j]
-            indexB = candidate_pairs[i][k]
-            j_score = jaccard_score(B[:,indexA],B[:,indexB])
-            
-            if j_score > threshold: # If score is larger than threshold, denote them as a pair
-                duplicates[indexA, indexB] = 1
+# Hier MSM maken
+
             
 
 
