@@ -9,13 +9,19 @@ import numpy as np
 import json
 import re
 from sklearn.metrics import jaccard_score
+import math
+
+# TODO: Check to also take features into account, maybe concatenate them after title
+# TODO: Check to implement another similarity measure than MSM
+# 
+
 
 
 ### Parameters
-n = 100 # Number of minhashes/rows in signature matrix
+Rows_of_signature_matrix= 650 # Number of minhashes/rows in signature matrix
 # t = # Threshold
-LSH_number_of_bands = 20# Number of bands in LSH
-LSH_number_of_rows = 5# Number of rows in each band in LSH
+LSH_number_of_bands = 13# Number of bands in LSH
+LSH_number_of_rows = 50# Number of rows in each band in LSH
 
  
 ### Function
@@ -49,6 +55,11 @@ tv_uncleaned = []
 for i in data.keys():
     for j in range(len(data[i])):
         tv_uncleaned.append(data[i][j]['title'])
+        
+        # TODO: Try to append the features to 'title', so the features are also taken into account
+        # TODO: In ieder geval brand en webshop, die zijn heel belangrijk
+        
+        
         
 
 
@@ -106,27 +117,37 @@ for tv in tv_titles:
 
 
 ### Creating the signature matrix
-S = np.inf * np.ones((n,len(tv_titles))) # Initialize signature matrix with each element +inf
+n = Rows_of_signature_matrix
+# S = np.inf * np.ones((n,len(tv_titles))) # Initialize signature matrix with each element +inf
+S = 99999 * np.ones((n,len(tv_titles))) # Initialize signature matrix with each element +inf
 
 # Parameters for the hash functions
-a = np.random.randint(len(mw_set), 10*len(mw_set), size = n) # Choose len(mw_set) as upper bound to find good numbers
-b = np.random.randint(len(mw_set), 10*len(mw_set), size = n)
+a = np.random.randint(0, 100*len(mw_set), size = n) # Choose len(mw_set) as upper bound to find good numbers
+b = np.random.randint(1, 100*len(mw_set), size = n)
 p = find_next_prime(len(mw_set)) # The mod value should be greater than the number of elements
 
 # Filling the signature matrix
-# TODO: kijken of dit wel écht goed gaat, nu erg veel columns die alleen maar inf zijn (hogere n waarde werkt beter)
 h = np.zeros((n,1)) # Initiate the hash values array
 for r in range(len(B)): # For each row r
     for k in range(n):
-        h[k] = (a[k] + b[k] * r) % p # TODO: Als je hier de indices veranderrd naar iets anders dan 'n' dan lijkt het stuk te gaan
+        h[k] = (a[k] + b[k] * r) % p # TODO: Er zijn nog steeds columns inf, uitzoeken hoe dat komt en het fixen
+        
     for c in range(len(B[0])): # For each column c
         if B[r,c] == 1:
             for i in range(n):
                 if h[i] < S[i,c]:
                     S[i,c] = h[i]
+                    
+# Test if all values are < inf
+print("The highest value element in the signature matrix is:", np.max(S))
+if math.isinf(np.max(S)):
+    for i in range(len(tv_titles)):
+        if math.isinf(S[0,i]):
+            print("Column ",i,' is inf!')
 
 
-### LSH
+
+### LSH to find candidate pairs
 # Parameters
 nob = LSH_number_of_bands # number of bands
 rpb = LSH_number_of_rows # rows per band
@@ -142,20 +163,76 @@ for b in range(nob):
 
 
 # Hash into buckets
-candidate_pairs = set()
-buckets_number = find_next_prime(2*len(tv_titles)) # Ensure that nr buckets > nr titles
-bucket_values = np.zeros((buckets_number,len(tv_titles)))
-alpha = np.random.randint(0, 10*len(mw_set)) # Choose len(mw_set) as upper bound to find good numbers
-beta = np.random.randint(1, 10*len(mw_set))
+bucket_number = find_next_prime(50*len(tv_titles)) # Create a large number of buckets, so accidental candidate pairs are unlikely
+buckets = [[]] #np.zeros((bucket_number))
+alpha = np.random.randint(0, 10*len(mw_set), size = nob) 
+beta = np.random.randint(1, 10*len(mw_set), size = nob)
+
+buckets = [] # Create a list of lists (a list of buckets)
+for i in range(bucket_number):
+    buckets.append([])                   
+
+candidate_pairs_set = set()
 for b in range(nob):
+    candidate_pairs_new = set() # For each band, start with an empty set of candidate pairs
     for i in range(len(S[0])):
-        # Hash function on LSH_matrix[:,i,b]
-        x = LSH_matrix[:,i,b].sum(axis=0)
-        if x != np.inf:
-            y = (alpha + beta*int(x)) % p
-            bucket_values[y,i] += 1
-        
-# Candidate pair selection by LSH
+          # value_to_hash = ''.join(map(str, LSH_matrix[:,i,b]))
+          value_to_hash = int(''.join(map(str, LSH_matrix[:,i,b].astype(int))))
+          bucket = (alpha[b] + beta[b] * value_to_hash) % bucket_number # Use a different has function for each band
+          buckets[bucket].append(i) # Add the index of the current i to the bucket
+          
+    candidate_pairs_new = [x for x in buckets if len(x)>1]# Remove buckets with less than 2 indices
+    candidate_pairs_set.update(set(tuple(x) for x in candidate_pairs_new)) # add new candidate pairs to the set
+
+
+
+
+### Comparing the candidate pairs
+candidate_pairs = list(candidate_pairs_set) # Change the set to a list to iterate over the list.
+# print(candidate_pairs[i][j]), prints tuple value j of candidate pair i
+
+# Define the threshold value. If Jaccard score is over the threshold, consider the pair as a duplicate.
+threshold = (1/nob)**(1/rpb)
+print("The threshold value is: ",threshold)
+
+duplicates = np.zeros((len(tv_titles),len(tv_titles)))
+for i in range(len(candidate_pairs)):
+    for j in range(len(candidate_pairs[i][:])):
+        for k in range(j+1,len(candidate_pairs[i])): # Only compare the right upper triangle of the matrix
+            indexA = candidate_pairs[i][j]
+            indexB = candidate_pairs[i][k]
+            j_score = jaccard_score(B[:,indexA],B[:,indexB])
+            
+            if j_score > threshold: # If score is larger than threshold, denote them as a pair
+                duplicates[indexA, indexB] = 1
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
